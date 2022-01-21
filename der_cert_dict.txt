@@ -1,0 +1,10 @@
+{'subject': ((('countryName', 'US'),), (('stateOrProvinceName', 'California'),), (('localityName', 'Menlo Park'),), (('organizationName', 'Facebook, Inc.'),), (('commonName', '*.facebook.com'),)),
+'issuer': ((('countryName', 'US'),), (('organizationName', 'DigiCert Inc'),), (('organizationalUnitName', 'www.digicert.com'),), (('commonName', 'DigiCert SHA2 High Assurance Server CA'),)),
+'version': 3,
+'serialNumber': '0564D601284E7EB488027AD51D3036F4',
+'notBefore': 'Oct 27 00:00:00 2021 GMT',
+'notAfter': 'Jan 25 23:59:59 2022 GMT',
+'subjectAltName': (('DNS', '*.facebook.com'), ('DNS', '*.facebook.net'), ('DNS', '*.fbcdn.net'), ('DNS', '*.fbsbx.com'), ('DNS', '*.m.facebook.com'), ('DNS', '*.messenger.com'), ('DNS', '*.xx.fbcdn.net'), ('DNS', '*.xy.fbcdn.net'), ('DNS', '*.xz.fbcdn.net'), ('DNS', 'facebook.com'), ('DNS', 'messenger.com')),
+'OCSP': ('http://ocsp.digicert.com',),
+'caIssuers': ('http://cacerts.digicert.com/DigiCertSHA2HighAssuranceServerCA.crt',),
+'crlDistributionPoints': ('http://crl3.digicert.com/sha2-ha-server-g6.crl', 'http://crl4.digicert.com/sha2-ha-server-g6.crl')}
