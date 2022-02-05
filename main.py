@@ -126,9 +126,9 @@ if __name__ == '__main__':
         print(Fore.LIGHTMAGENTA_EX + "===========================")
 
         if root_issuer in f.read():
-            print(Fore.LIGHTGREEN_EX + "Issuer is valid.")
+            print(Fore.LIGHTGREEN_EX + "CA Trusted.")
         else:
-            print(Fore.LIGHTRED_EX + "Issuer is not valid.")
+            print(Fore.LIGHTRED_EX + "NOT CA Trusted.")
 
 
 

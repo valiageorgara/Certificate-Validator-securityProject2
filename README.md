@@ -63,7 +63,7 @@ Subject Alternative Names:
 ===========================
 Checking CA trusted list...
 ===========================
-Issuer is valid.
+CA Trusted.
 ```
 
 ## Example 2
@@ -102,7 +102,7 @@ Subject Alternative Names:
 ===========================
 Checking CA trusted list...
 ===========================
-Issuer is not valid.
+NOT CA Trusted.
 ```
 ##Example 3
 ```
@@ -140,7 +140,7 @@ Subject Alternative Names:
 ===========================
 Checking CA trusted list...
 ===========================
-Issuer is not valid.
+NOT CA Trusted.
 ```
 
 ##Example 4
@@ -160,7 +160,7 @@ This script collects the host certificate, prints out basic information and:
 1. checks time validity by calculating if the not_after date has passed, meaning that it has expired and also, as an extra, calculates how many days the certificate is valid for, by doing not_after - not_before.
 2. checks if the issuer is in a trusted CA list. By running:
    `awk -v cmd='openssl x509 -noout -subject' '
-    /BEGIN/{close(cmd)};{print | cmd}' < /etc/ssl/certs/ca-certificates.crt >> ca_trusted.txt` in the terminal, I pulled from my os the certificate authorities. Then I check if the certificate issuer exists in that file.
+    /BEGIN/{close(cmd)};{print | cmd}' < /etc/ssl/certs/ca-certificates.crt >> ca_trusted.txt` in the terminal, I pulled from my os the certificate authorities. I find the root CA trusted issuer. Then I check if the certificate root issuer exists in that file.
 
 ## Acknowledgments
 I've used this space to list resources I have found helpful and would like to give credit to. 
