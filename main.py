@@ -1,138 +1,135 @@
-import ssl
-import socket
 import sys
-import pem
+from socket import socket
+import certifi
+from OpenSSL import SSL
+import idna
 import argparse
 from datetime import datetime
-import OpenSSL
 from colorama import Fore
 import requests
-import re
-
-_PEM_RE = re.compile(b'-----BEGIN CERTIFICATE-----\r?.+?\r?-----END CERTIFICATE-----\r?\n?', re.DOTALL)
-CA_PATH = '/home/valia/PycharmProjects/decurity_new/venv/lib/python3.9/site-packages/certifi/cacert.pem'
-
-
-def parse_chain(chain):
-    # returns a list of certificates
-    return [c.group() for c in _PEM_RE.finditer(chain)]
-
+import sys
+from requests.exceptions import ConnectionError
 
 if __name__ == '__main__':
 
-    # # Initialize parser
-    # parser = argparse.ArgumentParser()
-    #
-    # # Adding optional argument
-    # parser.add_argument("-url", "--Output", help="Show Output")
-    #
-    # # Read arguments from command line
-    # args = parser.parse_args()
-    # hostname = args.Output
-    #
-    # # check format of hostname
-    # hostname = hostname.replace('http://', '').replace('https://', '').replace('/', '')
-    # port = 443
-    # if ':' in hostname:
-    #     hostname, port = hostname.split(':')
-    #
-    # # check if the website exists
-    # try:
-    #     response = requests.get("http://" + hostname)
-    #     print(Fore.GREEN + "URL is valid and exists on the internet")
-    # except requests.ConnectionError as exception:
-    #     sys.exit(Fore.RED + "URL does not exist on Internet")
-    #
-    # print("Searching validity for host: % s" % hostname)
-    # print(" ")
-    hostname = 'www.facebook.com'
+    # Initialize parser
+    parser = argparse.ArgumentParser(prog='main.py', description="example: main.py -url facebook.com")
+
+    # Adding optional argument
+    parser.add_argument("-url", "--url", help="hostname as input")
+
+    # Read arguments from command line
+    args = parser.parse_args()
+    hostname = args.url
+
+    # check format of hostname
+    hostname = hostname.replace('http://', '').replace('https://', '').replace('/', '')
     port = 443
-    context = ssl.create_default_context()
-    conn = socket.create_connection((hostname, port))
-    sock = context.wrap_socket(conn, server_hostname=hostname)
+    if ':' in hostname:
+        hostname, port = hostname.split(':')
+
+    print(" ")
+    print(Fore.LIGHTMAGENTA_EX + "=======================================================")
+    print(Fore.LIGHTMAGENTA_EX + "Searching validity for host: % s" % hostname)
+    print(Fore.LIGHTMAGENTA_EX + "=======================================================")
+    print(" ")
+
+    hostname_idna = idna.encode(hostname)
+    sock = socket()
+
     try:
-        der_cert = sock.getpeercert(True)  # non-binary form
-        der_cert_dict = sock.getpeercert(False)  # dictionary form
-    except Exception as e:
-        print('ERORRRRR')
-        der_cert = b''
-        der_cert_dict = {}
-    finally:
-        sock.close()
+        sock.connect((hostname, port))
+    except OSError as e:
+        print(Fore.LIGHTRED_EX + "Caught exception: " + str(e))
+        sys.exit()
 
-    pem_cert = ssl.DER_cert_to_PEM_cert(der_cert)
-    byte_pem_cert = bytes(pem_cert, 'UTF-8')
-    x509 = OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, byte_pem_cert)
+    peer_name = sock.getpeername()
 
-    cert_subject = x509.get_subject()
+    ctx = SSL.Context(SSL.SSLv23_METHOD)  # most compatible
+    ctx.load_verify_locations(cafile=certifi.where())
+
+    ctx.check_hostname = False
+    ctx.verify_mode = SSL.VERIFY_NONE
+
+    sock_ssl = SSL.Connection(ctx, sock)
+    sock_ssl.set_connect_state()
+    sock_ssl.set_tlsext_host_name(hostname_idna)
+    sock_ssl.do_handshake()
+    chain=sock_ssl.get_peer_cert_chain()
+
+    print(Fore.LIGHTMAGENTA_EX + "Certificate trusted chain:")
+    print(Fore.LIGHTMAGENTA_EX + "=======================================================")
+
+    for (idx, cert) in enumerate(chain):
+        # print(f'{idx} subject: {cert.get_subject()}')
+        # print(f'  issuer: {cert.get_issuer()}')
+        # print(f'  fingerprint: {cert.digest("sha1")}')
+        root_issuer = cert.get_issuer().CN
+        print(Fore.RESET + root_issuer)
+
+    cert = sock_ssl.get_peer_certificate()
+    cert_subject = cert.get_subject()
 
     domain = cert_subject.CN
     organization = cert_subject.O
-    issuer_common_name = x509.get_issuer().commonName
-    issuer_country_name = x509.get_issuer().countryName
-    issuer_organization_name = x509.get_issuer().organizationName
-    issuer_organization_unit_name = x509.get_issuer().organizationalUnitName
-    sha1_fingerprint = x509.digest('sha1').decode()
-    signature_algorithm = x509.get_signature_algorithm().decode()
-    # public_key = x509.get_pubkey()
-    not_before = datetime.strptime(x509.get_notBefore().decode('ascii'), '%Y%m%d%H%M%SZ')
-    not_after = datetime.strptime(x509.get_notAfter().decode('ascii'), '%Y%m%d%H%M%SZ')
+    issuer_common_name = cert.get_issuer().commonName
+    issuer_country_name = cert.get_issuer().countryName
+    issuer_organization_name = cert.get_issuer().organizationName
+    issuer_organization_unit_name = cert.get_issuer().organizationalUnitName
+    sha1_fingerprint = cert.digest('sha1').decode()
+    signature_algorithm = cert.get_signature_algorithm().decode()
+    not_before = datetime.strptime(cert.get_notBefore().decode('ascii'), '%Y%m%d%H%M%SZ')
+    not_after = datetime.strptime(cert.get_notAfter().decode('ascii'), '%Y%m%d%H%M%SZ')
     valid_days_left = (not_after - datetime.now()).days
     valid_for = (not_after - not_before).days
-    expiration = x509.has_expired()
-    version = x509.get_version()
-    serial_number = x509.get_serial_number()
-    extension_count = x509.get_extension_count()
+    expiration = cert.has_expired()
+    version = cert.get_version()
+    serial_number = cert.get_serial_number()
+    extension_count = cert.get_extension_count()
 
     sans = ''
     subject_alternative_names = []
     for i in range(0, extension_count):
-        extension = x509.get_extension(i)
+        extension = cert.get_extension(i)
         if 'subjectAltName' in str(extension.get_short_name()):
             sans = extension.__str__().replace('DNS', '').replace(':', '')
     if sans:
         subject_alternative_names = sans.split(',')
 
-    print(Fore.LIGHTGREEN_EX + pem_cert)
-    print(Fore.LIGHTGREEN_EX + 'Domain: ' + domain)
-    print(Fore.LIGHTGREEN_EX + 'Company name: ' + organization)
-    print(Fore.LIGHTGREEN_EX + 'Country: ' + issuer_country_name)
-    print(Fore.LIGHTGREEN_EX + 'Issuer Organization Name: ' + issuer_organization_name)
-    print(Fore.LIGHTGREEN_EX + 'Version: ' + str(version))
-    print(Fore.LIGHTGREEN_EX + 'Serial number: ' + str(serial_number))
-    print(Fore.LIGHTGREEN_EX + 'SHA1 Fingerprint: ' + sha1_fingerprint)
-    print(Fore.LIGHTGREEN_EX + 'Key Algorithm: ' + signature_algorithm)
-    # Validate certificate expiration
-    print(Fore.LIGHTGREEN_EX + 'Not before: ' + str(not_before))
-    print(Fore.LIGHTGREEN_EX + 'Not after: ' + str(not_after))
-    print(Fore.LIGHTGREEN_EX + 'Total valid for: ' + str(valid_for) + ' days ')
-    print(Fore.LIGHTGREEN_EX + 'Days left: ' + str(valid_days_left))
-    print(Fore.LIGHTGREEN_EX + 'Expired: ' + str(expiration))
-    print(Fore.LIGHTGREEN_EX + 'Subject Alternative Names: ')
+    print(" ")
+    print(Fore.LIGHTMAGENTA_EX + "Certificate Information:")
+    print(Fore.LIGHTMAGENTA_EX + "=======================================================")
+    print(Fore.LIGHTBLUE_EX + 'Domain: ' + Fore.RESET + str(domain))
+    print(Fore.LIGHTBLUE_EX + 'Company name: ' + Fore.RESET + str(organization))
+    print(Fore.LIGHTBLUE_EX + 'Country: ' + Fore.RESET + str(issuer_country_name))
+    print(Fore.LIGHTBLUE_EX + 'Issuer Organization Name: ' + Fore.RESET + str(issuer_organization_name))
+    print(Fore.LIGHTBLUE_EX + 'Version: ' + Fore.RESET + str(version))
+    print(Fore.LIGHTBLUE_EX + 'Serial number: ' + Fore.RESET + str(serial_number))
+    print(Fore.LIGHTBLUE_EX + 'SHA1 Fingerprint: ' + Fore.RESET + sha1_fingerprint)
+    print(Fore.LIGHTBLUE_EX + 'Key Algorithm: ' + Fore.RESET + signature_algorithm)
+    print(Fore.LIGHTBLUE_EX + 'Not before: ' + Fore.RESET + str(not_before))
+    print(Fore.LIGHTBLUE_EX + 'Not after: ' + Fore.RESET + str(not_after))
+    print(Fore.LIGHTBLUE_EX + 'Total valid for: ' + Fore.RESET + str(valid_for) + ' days ')
+    print(Fore.LIGHTBLUE_EX + 'Days left: ' + Fore.RESET + str(valid_days_left))
+    if expiration:
+        print(Fore.LIGHTBLUE_EX + 'Expired: ' + Fore.LIGHTRED_EX + str(expiration))
+    else:
+        print(Fore.LIGHTBLUE_EX + 'Expired: ' + Fore.LIGHTGREEN_EX + str(expiration))
+    print(Fore.LIGHTBLUE_EX + 'Subject Alternative Names: ')
     for dns_name in subject_alternative_names:
-        print(Fore.LIGHTGREEN_EX + '  DNS Name: ' + dns_name)
+        print(Fore.RESET + '  DNS Name: ' + dns_name)
     print(" ")
 
-    ca_issuers = str(der_cert_dict['caIssuers']).replace("'", "").replace("(", "").replace(")", "").replace(",", "")
-    print(ca_issuers)
+    with open('ca_trusted.txt') as f:
+        print(Fore.LIGHTMAGENTA_EX + "===========================")
+        print(Fore.LIGHTMAGENTA_EX + "Checking CA trusted list...")
+        print(Fore.LIGHTMAGENTA_EX + "===========================")
 
-    with open(CA_PATH, 'rb') as file:
-        ca_file = file.read()
+        if root_issuer in f.read():
+            print(Fore.LIGHTGREEN_EX + "Issuer is valid.")
+        else:
+            print(Fore.LIGHTRED_EX + "Issuer is not valid.")
 
-    store = OpenSSL.crypto.X509Store()
-
-    for _cert in pem.parse(ca_file):
-        # print(_cert)
-        store.add_cert(OpenSSL.crypto.load_certificate(OpenSSL.crypto.FILETYPE_PEM, _cert.as_bytes()))
-    # store.add_cert(x509)
-    store_ctx = OpenSSL.crypto.X509StoreContext(store, x509)
-    store_ctx.verify_certificate()
-    # try:
-    #     store_ctx.verify_certificate()
-    #     print("Verify - OK")
-    # except OpenSSL.crypto.X509StoreContextError as e:
-    #     print(Fore.LIGHTRED_EX + "CA doesn't match, got the " 'following error from pyOpenSSL: ' + Fore.WHITE +
-    #           e.args[0][2])
 
 
 
